@@ -200,33 +200,17 @@ func BenchmarkPart1(b *testing.B) {
 		b.Fatalf("failed to read input file: %v", err)
 	}
 	input := string(data)
+	expected := 44487518055
 
-	tests := []struct {
-		name     string
-		fn       func(string) (int, error)
-		expected int
-	}{
-		{
-			name: "Part 1",
-			fn: func(input string) (int, error) {
-				return Part1(strings.NewReader(input))
-			},
-			expected: 44487518055,
-		},
-	}
-	for _, tt := range tests {
-		b.Run(tt.name, func(b *testing.B) {
-			b.ReportAllocs()
-			for b.Loop() {
-				result, err := tt.fn(input)
-				if err != nil {
-					b.Fatalf("benchmark failed: %v", err)
-				}
-				if result != tt.expected {
-					b.Fatalf("expected %d, got %d", tt.expected, result)
-				}
-			}
-		})
+	b.ReportAllocs()
+	for b.Loop() {
+		result, err := Part1(strings.NewReader(input))
+		if err != nil {
+			b.Fatalf("benchmark failed: %v", err)
+		}
+		if result != expected {
+			b.Fatalf("expected %d, got %d", expected, result)
+		}
 	}
 }
 
@@ -236,32 +220,16 @@ func BenchmarkPart2(b *testing.B) {
 		b.Fatalf("failed to read input file: %v", err)
 	}
 	input := string(data)
+	expected := 53481866137
 
-	tests := []struct {
-		name     string
-		fn       func(string) (int, error)
-		expected int
-	}{
-		{
-			name: "Part 2",
-			fn: func(input string) (int, error) {
-				return Part2(strings.NewReader(input))
-			},
-			expected: 53481866137,
-		},
-	}
-	for _, tt := range tests {
-		b.Run(tt.name, func(b *testing.B) {
-			b.ReportAllocs()
-			for b.Loop() {
-				result, err := tt.fn(input)
-				if err != nil {
-					b.Fatalf("benchmark failed: %v", err)
-				}
-				if result != tt.expected {
-					b.Fatalf("expected %d, got %d", tt.expected, result)
-				}
-			}
-		})
+	b.ReportAllocs()
+	for b.Loop() {
+		result, err := Part2(strings.NewReader(input))
+		if err != nil {
+			b.Fatalf("benchmark failed: %v", err)
+		}
+		if result != expected {
+			b.Fatalf("expected %d, got %d", expected, result)
+		}
 	}
 }
