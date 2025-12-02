@@ -91,7 +91,7 @@ L82`,
 }
 
 func BenchmarkPart1(b *testing.B) {
-	data, err := os.ReadFile(inputFile)
+	data, err := os.ReadFile(getInputPath())
 	if err != nil {
 		b.Fatalf("failed to read input file: %v", err)
 	}
@@ -128,7 +128,7 @@ func BenchmarkPart1(b *testing.B) {
 }
 
 func BenchmarkPart2(b *testing.B) {
-	data, err := os.ReadFile(inputFile)
+	data, err := os.ReadFile(getInputPath())
 	if err != nil {
 		b.Fatalf("failed to read input file: %v", err)
 	}

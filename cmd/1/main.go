@@ -5,11 +5,12 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
+	"runtime"
 	"strconv"
 )
 
 const (
-	inputFile        = "/home/santiago/Projects/aoc-2025/cmd/1/input.txt"
 	startingPosition = 50
 	dialLength       = 100
 )
@@ -30,9 +31,13 @@ type Rotation struct {
 func (r Rotation) Apply(startPosition, dialLength int) (int, bool) {
 	switch r.Direction {
 	case DirectionLeft:
-		return (startPosition - r.Steps + dialLength) % dialLength, startPosition != 0 && startPosition-r.Steps < 0
+		newPosition := (startPosition - r.Steps + dialLength) % dialLength
+		crossedZero := startPosition != 0 && startPosition-r.Steps < 0
+		return newPosition, crossedZero
 	case DirectionRight:
-		return (startPosition + r.Steps) % dialLength, startPosition != 0 && startPosition+r.Steps > dialLength
+		newPosition := (startPosition + r.Steps) % dialLength
+		crossedZero := startPosition != 0 && startPosition+r.Steps > dialLength
+		return newPosition, crossedZero
 	default:
 		panic("invalid direction in rotation")
 	}
@@ -63,8 +68,8 @@ func ParseRotation(s string, dialLength int) (Rotation, error) {
 	}, nil
 }
 
-func Part1(r io.Reader, startingPosition, dialLength int) (int, error) {
-	scanner := bufio.NewScanner(r)
+func Part1(input io.Reader, startingPosition, dialLength int) (int, error) {
+	scanner := bufio.NewScanner(input)
 	lineNum := 0
 	currentPosition := startingPosition
 	zeroCounts := 0
@@ -87,8 +92,8 @@ func Part1(r io.Reader, startingPosition, dialLength int) (int, error) {
 	return zeroCounts, nil
 }
 
-func Part2(r io.Reader, startingPosition, dialLength int) (int, error) {
-	scanner := bufio.NewScanner(r)
+func Part2(input io.Reader, startingPosition, dialLength int) (int, error) {
+	scanner := bufio.NewScanner(input)
 	lineNum := 0
 	currentPosition := startingPosition
 	crossedZero := false
@@ -116,8 +121,14 @@ func Part2(r io.Reader, startingPosition, dialLength int) (int, error) {
 	return zeroCounts, nil
 }
 
+func getInputPath() string {
+	_, filename, _, _ := runtime.Caller(0)
+	dir := filepath.Dir(filename)
+	return filepath.Join(dir, "input.txt")
+}
+
 func main() {
-	file, err := os.Open(inputFile)
+	file, err := os.Open(getInputPath())
 	if err != nil {
 		panic(err)
 	}
@@ -127,12 +138,12 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	fmt.Printf("Stage 1: %d\n", zeroCounts)
+	fmt.Printf("Part 1: %d\n", zeroCounts)
 
 	file.Seek(0, io.SeekStart)
 	zeroCounts, err = Part2(file, startingPosition, dialLength)
 	if err != nil {
 		panic(err)
 	}
-	fmt.Printf("Stage 2: %d\n", zeroCounts)
+	fmt.Printf("Part 2: %d\n", zeroCounts)
 }
