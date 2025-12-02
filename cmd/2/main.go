@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"io"
 	"os"
@@ -39,109 +40,6 @@ func ParseSpan(s string) (Span, error) {
 		return Span{}, fmt.Errorf("invalid span range in span string: %s", s)
 	}
 	return Span{Start: start, End: end}, nil
-}
-
-var allInvalidsPart1 []int
-
-func init() {
-	allInvalidsPart1 = generateAllInvalidsPart1()
-}
-
-func generateAllInvalidsPart1() []int {
-	invalids := make([]int, 0, 100000)
-
-	for ab := 1; ab <= 9; ab++ {
-		invalids = append(invalids, ab*11)
-	}
-
-	for ab := 10; ab <= 99; ab++ {
-		invalids = append(invalids, ab*100+ab)
-	}
-
-	for abc := 100; abc <= 999; abc++ {
-		invalids = append(invalids, abc*1000+abc)
-	}
-
-	for abcd := 1000; abcd <= 9999; abcd++ {
-		invalids = append(invalids, abcd*10000+abcd)
-	}
-
-	for abcde := 10000; abcde <= 99999; abcde++ {
-		invalids = append(invalids, abcde*100000+abcde)
-	}
-
-	return invalids
-}
-
-func findInvalidsInRange(start, end int) []int {
-	left := 0
-	right := len(allInvalidsPart1)
-	for left < right {
-		mid := (left + right) / 2
-		if allInvalidsPart1[mid] < start {
-			left = mid + 1
-		} else {
-			right = mid
-		}
-	}
-	startIdx := left
-
-	left = startIdx
-	right = len(allInvalidsPart1)
-	for left < right {
-		mid := (left + right) / 2
-		if allInvalidsPart1[mid] <= end {
-			left = mid + 1
-		} else {
-			right = mid
-		}
-	}
-	endIdx := left
-
-	if startIdx >= endIdx {
-		return nil
-	}
-	return allInvalidsPart1[startIdx:endIdx]
-}
-
-func (r Span) GetInvalidIdsPart1() []int {
-	return findInvalidsInRange(r.Start, r.End)
-}
-
-func (r Span) GetInvalidIdsPart2() []int {
-	invalids := make([]int, 0)
-	for i := r.Start; i <= r.End; i++ {
-		if isInvalidPart2(i) {
-			invalids = append(invalids, i)
-		}
-	}
-	return invalids
-}
-
-func isInvalidPart2(id int) bool {
-	strId := strconv.Itoa(id)
-	numDigits := len(strId)
-	if numDigits < 2 {
-		return false
-	}
-	for numCandidates := 2; numCandidates <= numDigits; numCandidates++ {
-		if numDigits%numCandidates != 0 {
-			continue
-		}
-		candidateLength := numDigits / numCandidates
-		candidate := strId[:candidateLength]
-		matched := true
-		for i := 1; i < numCandidates; i++ {
-			if strId[i*candidateLength:(i+1)*candidateLength] != candidate {
-				matched = false
-				break
-			}
-		}
-		if matched {
-			return true
-		}
-	}
-	return false
 }
 
 func processSpans(input io.Reader, validator func(Span) []int) (int, error) {
@@ -197,12 +95,28 @@ func processSpansWithWorkers(input io.Reader, validator func(Span) []int, worker
 	return totalSum, nil
 }
 
-func Part1(input io.Reader) (int, error) {
-	return processSpans(input, Span.GetInvalidIdsPart1)
+func Part1(input io.Reader, methodChoice string, allInvalidsPart1 []int) (int, error) {
+	var validator func(Span) []int
+	if methodChoice == "arithmetic" {
+		validator = Span.GetInvalidIdsPart1
+	} else {
+		validator = func(s Span) []int {
+			return s.GetInvalidIdsPart1Direct(allInvalidsPart1)
+		}
+	}
+	return processSpans(input, validator)
 }
 
-func Part2(input io.Reader) (int, error) {
-	return processSpans(input, Span.GetInvalidIdsPart2)
+func Part2(input io.Reader, methodChoice string, allInvalidsPart2 []int) (int, error) {
+	var validator func(Span) []int
+	if methodChoice == "arithmetic" {
+		validator = Span.GetInvalidIdsPart2
+	} else {
+		validator = func(s Span) []int {
+			return s.GetInvalidIdsPart2Direct(allInvalidsPart2)
+		}
+	}
+	return processSpans(input, validator)
 }
 
 func getInputPath() string {
@@ -212,20 +126,38 @@ func getInputPath() string {
 }
 
 func main() {
+	methodFlag := flag.String("method", "arithmetic", "validation method: arithmetic|direct")
+	flag.Parse()
+	methodChoice := *methodFlag
+	if methodChoice != "arithmetic" && methodChoice != "direct" {
+		panic(fmt.Errorf("invalid method choice: %s", methodChoice))
+	}
+
+	var allInvalidsPart1 []int
+	var allInvalidsPart2 []int
+
+	if methodChoice == "arithmetic" {
+		allInvalidsPart1 = nil
+		allInvalidsPart2 = nil
+	} else {
+		allInvalidsPart1 = generateAllInvalidsPart1()
+		allInvalidsPart2 = generateAllInvalidsPart2()
+	}
+
 	file, err := os.Open(getInputPath())
 	if err != nil {
 		panic(err)
 	}
 	defer file.Close()
 
-	idSum, err := Part1(file)
+	idSum, err := Part1(file, methodChoice, allInvalidsPart1)
 	if err != nil {
 		panic(err)
 	}
 	fmt.Println("Part 1:", idSum)
 
 	file.Seek(0, io.SeekStart)
-	idSum, err = Part2(file)
+	idSum, err = Part2(file, methodChoice, allInvalidsPart2)
 	if err != nil {
 		panic(err)
 	}
