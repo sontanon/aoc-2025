@@ -41,18 +41,18 @@ func ParseSpan(s string) (Span, error) {
 	return Span{Start: start, End: end}, nil
 }
 
-func (r Span) GetInvalidIds() []int {
+func (r Span) GetInvalidIdsPart1() []int {
 	invalids := make([]int, 0)
 	// This should be optimized by reducing the search space and automatically rejecting certain ranges.
 	for i := r.Start; i <= r.End; i++ {
-		if isInvalid(i) {
+		if isInvalidPart1(i) {
 			invalids = append(invalids, i)
 		}
 	}
 	return invalids
 }
 
-func isInvalid(id int) bool {
+func isInvalidPart1(id int) bool {
 	// Option 1: strconv.Itoa: 0.01325s per full run
 	// strId := strconv.Itoa(id)
 	// numDigits := len(strId)
@@ -88,6 +88,42 @@ func isInvalid(id int) bool {
 	}
 }
 
+func (r Span) GetInvalidIdsPart2() []int {
+	invalids := make([]int, 0)
+	for i := r.Start; i <= r.End; i++ {
+		if isInvalidPart2(i) {
+			invalids = append(invalids, i)
+		}
+	}
+	return invalids
+}
+
+func isInvalidPart2(id int) bool {
+	strId := strconv.Itoa(id)
+	numDigits := len(strId)
+	if numDigits < 2 {
+		return false
+	}
+	for numCandidates := 2; numCandidates <= numDigits; numCandidates++ {
+		if numDigits%numCandidates != 0 {
+			continue
+		}
+		candidateLength := numDigits / numCandidates
+		candidate := strId[:candidateLength]
+		matched := true
+		for i := 1; i < numCandidates; i++ {
+			if strId[i*candidateLength:(i+1)*candidateLength] != candidate {
+				matched = false
+				break
+			}
+		}
+		if matched {
+			return true
+		}
+	}
+	return false
+}
+
 func Part1(input io.Reader) (int, error) {
 	data, err := io.ReadAll(input)
 	if err != nil {
@@ -115,7 +151,56 @@ func Part1(input io.Reader) (int, error) {
 		wg.Go(func() {
 			localSum := 0
 			for span := range spans {
-				invalids := span.GetInvalidIds()
+				invalids := span.GetInvalidIdsPart1()
+				for _, id := range invalids {
+					localSum += id
+				}
+			}
+			results <- localSum
+		})
+	}
+
+	go func() {
+		wg.Wait()
+		close(results)
+	}()
+
+	totalSum := 0
+	for sum := range results {
+		totalSum += sum
+	}
+
+	return totalSum, nil
+}
+
+func Part2(input io.Reader) (int, error) {
+	data, err := io.ReadAll(input)
+	if err != nil {
+		return 0, fmt.Errorf("error reading input: %w", err)
+	}
+
+	spanStrs := strings.Split(strings.TrimSpace(string(data)), ",")
+
+	spans := make(chan Span, spanBufferSize)
+	results := make(chan int, resultBufferSize)
+
+	go func() {
+		for i, spanStr := range spanStrs {
+			span, err := ParseSpan(spanStr)
+			if err != nil {
+				panic(fmt.Errorf("error parsing span on index %d: %w", i, err))
+			}
+			spans <- span
+		}
+		close(spans)
+	}()
+
+	wg := sync.WaitGroup{}
+	for range numWorkers {
+		wg.Go(func() {
+			localSum := 0
+			for span := range spans {
+				invalids := span.GetInvalidIdsPart2()
 				for _, id := range invalids {
 					localSum += id
 				}
@@ -150,9 +235,16 @@ func main() {
 	}
 	defer file.Close()
 
-	invalidIds, err := Part1(file)
+	idSum, err := Part1(file)
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println("Part 1:", invalidIds)
+	fmt.Println("Part 1:", idSum)
+
+	file.Seek(0, io.SeekStart)
+	idSum, err = Part2(file)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println("Part 2:", idSum)
 }
