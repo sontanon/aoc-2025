@@ -1,6 +1,7 @@
 package main
 
 import (
+	"os"
 	"strings"
 	"testing"
 )
@@ -19,6 +20,10 @@ func TestMaximumJoltage(t *testing.T) {
 		},
 		{
 			"234234234234278",
+			78,
+		},
+		{
+			"818181911112111",
 			92,
 		},
 	}
@@ -67,4 +72,26 @@ func TestPart1(t *testing.T) {
 			}
 		})
 	}
+}
+
+func BenchmarkPart1(b *testing.B) {
+	data, err := os.ReadFile(getInputPath())
+	if err != nil {
+		b.Fatalf("failed to read input file: %v", err)
+	}
+	input := string(data)
+	expected := 17359
+
+	b.Run("Part1", func(b *testing.B) {
+		b.ReportAllocs()
+		for b.Loop() {
+			result, err := Part1(strings.NewReader(input))
+			if err != nil {
+				b.Fatalf("benchmark failed: %v", err)
+			}
+			if result != expected {
+				b.Fatalf("expected %d, got %d", expected, result)
+			}
+		}
+	})
 }
