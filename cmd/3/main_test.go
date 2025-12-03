@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-func TestMaximumJoltage(t *testing.T) {
+func TestMaximumJoltagePart1(t *testing.T) {
 	tests := []struct {
 		input    string
 		expected int
@@ -31,7 +31,7 @@ func TestMaximumJoltage(t *testing.T) {
 		t.Run(
 			tt.input,
 			func(t *testing.T) {
-				result, err := ParseBank(tt.input)
+				result, err := ParseBankPart1(tt.input)
 				if err != nil {
 					t.Fatalf("ParseBank() error = %v", err)
 				}
@@ -41,7 +41,43 @@ func TestMaximumJoltage(t *testing.T) {
 			},
 		)
 	}
+}
 
+func TestMaximumJoltagePart2(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected int
+	}{
+		{
+			"987654321111111",
+			987654321111,
+		}, {
+			"811111111111119",
+			811111111119,
+		},
+		{
+			"234234234234278",
+			434234234278,
+		},
+		{
+			"818181911112111",
+			888911112111,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(
+			tt.input,
+			func(t *testing.T) {
+				result, err := ParseBankPart2(tt.input)
+				if err != nil {
+					t.Fatalf("ParseBankPart2() error = %v", err)
+				}
+				if result != tt.expected {
+					t.Errorf("ParseBankPart2() = %v, want %v", result, tt.expected)
+				}
+			},
+		)
+	}
 }
 
 func TestPart1(t *testing.T) {
@@ -68,6 +104,35 @@ func TestPart1(t *testing.T) {
 			}
 			if r != tt.expected {
 				t.Errorf("Part1() = %v, want %v", r, tt.expected)
+			}
+		})
+	}
+}
+
+func TestPart2(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected int
+	}{
+		{
+			"Provided example",
+			`987654321111111
+811111111111119
+234234234234278
+818181911112111
+`,
+			3121910778619,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r, err := Part2(strings.NewReader(tt.input))
+			if err != nil {
+				t.Fatalf("Part2() error = %v", err)
+			}
+			if r != tt.expected {
+				t.Errorf("Part2() = %v, want %v", r, tt.expected)
 			}
 		})
 	}
@@ -107,7 +172,7 @@ func BenchmarkParseBank(b *testing.B) {
 		idx := 0
 		for b.Loop() {
 			line := lines[idx%len(lines)]
-			result, err := ParseBank(line)
+			result, err := ParseBankPart1(line)
 			if err != nil {
 				b.Fatalf("ParseBank failed: %v", err)
 			}

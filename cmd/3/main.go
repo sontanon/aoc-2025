@@ -17,11 +17,7 @@ const (
 	numWorkers       = 8
 )
 
-type Bank struct {
-	v []int
-}
-
-func ParseBank(input string) (int, error) {
+func ParseBankPart1(input string) (int, error) {
 	if len(input) <= 2 {
 		return 0, errors.New("input too short to be a valid bank")
 	}
@@ -60,6 +56,65 @@ func ParseBank(input string) (int, error) {
 	lDigit := int(lByte - '0')
 	rDigit := int(rByte - '0')
 	return 10*lDigit + rDigit, nil
+}
+
+const part2Length = 12
+
+func ParseBankPart2(input string) (int, error) {
+	n := len(input)
+	if n < part2Length {
+		return 0, errors.New("input too short to be a valid bank for part 2")
+	}
+	var buffer [part2Length]byte
+	searchSpace := []byte(input)
+	for i := range part2Length {
+		leaveRoom := part2Length - i - 1
+		lIdx := searchMaxByte(searchSpace[:len(searchSpace)-leaveRoom])
+		if lIdx == -1 {
+			return 0, fmt.Errorf("invalid digit found during left search at iteration %d", i)
+		}
+		buffer[i] = searchSpace[lIdx]
+		searchSpace = searchSpace[lIdx+1:]
+	}
+	result := 0
+	multiplier := 1
+	for i := part2Length - 1; i >= 0; i-- {
+		digit := int(buffer[i] - '0')
+		result += digit * multiplier
+		multiplier *= 10
+	}
+	return result, nil
+}
+
+func validByte(b byte) bool {
+	return b >= '0' && b <= '9'
+}
+
+func searchMaxByte(inputSlice []byte) int {
+	if len(inputSlice) == 0 {
+		return -1
+	}
+	if len(inputSlice) == 1 {
+		return 0
+	}
+	lByte := inputSlice[0]
+	if !validByte(lByte) {
+		return -1
+	}
+	lIdx := 0
+	for i := 1; i < len(inputSlice); i++ {
+		if lByte == '9' {
+			return lIdx
+		}
+		if !validByte(inputSlice[i]) {
+			return -1
+		}
+		if inputSlice[i] > lByte {
+			lByte = inputSlice[i]
+			lIdx = i
+		}
+	}
+	return lIdx
 }
 
 func processBanksWithWorkers(input io.Reader, parser func(string) (int, error), workers int) (int, error) {
@@ -106,7 +161,12 @@ func processBanksWithWorkers(input io.Reader, parser func(string) (int, error), 
 
 func Part1(input io.Reader) (int, error) {
 	return processBanksWithWorkers(input,
-		ParseBank, numWorkers)
+		ParseBankPart1, numWorkers)
+}
+
+func Part2(input io.Reader) (int, error) {
+	return processBanksWithWorkers(input,
+		ParseBankPart2, numWorkers)
 }
 
 func getInputPath() string {
@@ -128,4 +188,10 @@ func main() {
 	}
 	println("Part 1:", result)
 
+	file.Seek(0, io.SeekStart)
+	result, err = Part2(file)
+	if err != nil {
+		panic(err)
+	}
+	println("Part 2:", result)
 }
