@@ -160,21 +160,65 @@ func BenchmarkPart1(b *testing.B) {
 	})
 }
 
-func BenchmarkParseBank(b *testing.B) {
+func BenchmarkPart2(b *testing.B) {
+	data, err := os.ReadFile(getInputPath())
+	if err != nil {
+		b.Fatalf("failed to read input file: %v", err)
+	}
+	input := string(data)
+	expected := 172787336861064
+
+	b.Run("Part2", func(b *testing.B) {
+		b.ReportAllocs()
+		for b.Loop() {
+			result, err := Part2(strings.NewReader(input))
+			if err != nil {
+				b.Fatalf("benchmark failed: %v", err)
+			}
+			if result != expected {
+				b.Fatalf("expected %d, got %d", expected, result)
+			}
+		}
+	})
+}
+
+func BenchmarkParseBankPart1(b *testing.B) {
 	data, err := os.ReadFile(getInputPath())
 	if err != nil {
 		b.Fatalf("failed to read input file: %v", err)
 	}
 	lines := strings.Split(strings.TrimSpace(string(data)), "\n")
 
-	b.Run("ParseBank", func(b *testing.B) {
+	b.Run("ParseBankPart1", func(b *testing.B) {
 		b.ReportAllocs()
 		idx := 0
 		for b.Loop() {
 			line := lines[idx%len(lines)]
 			result, err := ParseBankPart1(line)
 			if err != nil {
-				b.Fatalf("ParseBank failed: %v", err)
+				b.Fatalf("ParseBankPart1 failed: %v", err)
+			}
+			_ = result
+			idx++
+		}
+	})
+}
+
+func BenchmarkParseBankPart2(b *testing.B) {
+	data, err := os.ReadFile(getInputPath())
+	if err != nil {
+		b.Fatalf("failed to read input file: %v", err)
+	}
+	lines := strings.Split(strings.TrimSpace(string(data)), "\n")
+
+	b.Run("ParseBankPart2", func(b *testing.B) {
+		b.ReportAllocs()
+		idx := 0
+		for b.Loop() {
+			line := lines[idx%len(lines)]
+			result, err := ParseBankPart2(line)
+			if err != nil {
+				b.Fatalf("ParseBankPart2 failed: %v", err)
 			}
 			_ = result
 			idx++
