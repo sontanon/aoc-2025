@@ -7,7 +7,6 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"strconv"
 	"strings"
 	"sync"
 )
@@ -22,63 +21,60 @@ type Bank struct {
 	v []int
 }
 
-func ParseBank(input string) (Bank, error) {
-	v := make([]int, len(input))
-	for i, ch := range input {
-		e, err := strconv.Atoi(string(ch))
-		if err != nil {
-			return Bank{}, err
-		}
-		v[i] = e
+func ParseBank(input string) (int, error) {
+	if len(input) <= 2 {
+		return 0, errors.New("input too short to be a valid bank")
 	}
-	if len(v) < 2 {
-		return Bank{}, fmt.Errorf("input must have at least two elements: '%s'", input)
+	lByte := input[0]
+	if lByte < '0' || lByte > '9' {
+		return 0, fmt.Errorf("invalid left digit: %q", lByte)
 	}
-	if v[0] == 0 {
-		return Bank{}, errors.New("first element cannot be zero")
+	rByte := input[len(input)-1]
+	if rByte < '0' || rByte > '9' {
+		return 0, fmt.Errorf("invalid right digit: %q", rByte)
 	}
-	return Bank{v: v}, nil
-}
-
-func (b Bank) MaximumJoltage() int {
-	leftMaxIndex := 0
-	for i := 1; i < len(b.v)-1; i++ {
-		if b.v[leftMaxIndex] == 9 {
+	lIdx := 0
+	for i := 1; i < len(input)-1; i++ {
+		if lByte == '9' {
 			break
 		}
-		if b.v[i] > b.v[leftMaxIndex] {
-			leftMaxIndex = i
+		if input[i] < '0' || input[i] > '9' {
+			return 0, fmt.Errorf("invalid digit at index %d: %q", i, input[i])
+		}
+		if input[i] > lByte {
+			lByte = input[i]
+			lIdx = i
 		}
 	}
-	rightMaxIndex := len(b.v) - 1
-	for i := len(b.v) - 2; i > leftMaxIndex; i-- {
-		if b.v[rightMaxIndex] == 9 {
+	for i := len(input) - 2; i > lIdx; i-- {
+		if rByte == '9' {
 			break
 		}
-		if b.v[i] > b.v[rightMaxIndex] {
-			rightMaxIndex = i
+		if input[i] < '0' || input[i] > '9' {
+			return 0, fmt.Errorf("invalid digit at index %d: %q", i, input[i])
+		}
+		if input[i] > rByte {
+			rByte = input[i]
 		}
 	}
-	return 10*b.v[leftMaxIndex] + b.v[rightMaxIndex]
+	lDigit := int(lByte - '0')
+	rDigit := int(rByte - '0')
+	return 10*lDigit + rDigit, nil
 }
 
-func processBanksWithWorkers(input io.Reader, validator func(Bank) int, workers int) (int, error) {
+func processBanksWithWorkers(input io.Reader, parser func(string) (int, error), workers int) (int, error) {
 	data, err := io.ReadAll(input)
 	if err != nil {
 		return 0, fmt.Errorf("error reading input: %w", err)
 	}
 
-	bankLines := strings.Split(strings.TrimSpace(string(data)), "\n")
-	banks := make(chan Bank, bankBufferSize)
+	lines := strings.Split(strings.TrimSpace(string(data)), "\n")
+	banks := make(chan string, bankBufferSize)
 	results := make(chan int, resultBufferSize)
 
 	go func() {
-		for i, line := range bankLines {
-			bank, err := ParseBank(line)
-			if err != nil {
-				panic(fmt.Errorf("error parsing bank on line %d: %w", i+1, err))
-			}
-			banks <- bank
+		for _, line := range lines {
+			banks <- line
 		}
 		close(banks)
 	}()
@@ -87,7 +83,10 @@ func processBanksWithWorkers(input io.Reader, validator func(Bank) int, workers 
 	for range workers {
 		wg.Go(func() {
 			for bank := range banks {
-				result := validator(bank)
+				result, err := parser(bank)
+				if err != nil {
+					panic(fmt.Sprintf("error parsing bank %q: %v", bank, err))
+				}
 				results <- result
 			}
 		})
@@ -106,9 +105,8 @@ func processBanksWithWorkers(input io.Reader, validator func(Bank) int, workers 
 }
 
 func Part1(input io.Reader) (int, error) {
-	return processBanksWithWorkers(input, func(b Bank) int {
-		return b.MaximumJoltage()
-	}, numWorkers)
+	return processBanksWithWorkers(input,
+		ParseBank, numWorkers)
 }
 
 func getInputPath() string {

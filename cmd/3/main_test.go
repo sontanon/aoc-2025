@@ -31,13 +31,12 @@ func TestMaximumJoltage(t *testing.T) {
 		t.Run(
 			tt.input,
 			func(t *testing.T) {
-				bank, err := ParseBank(tt.input)
+				result, err := ParseBank(tt.input)
 				if err != nil {
 					t.Fatalf("ParseBank() error = %v", err)
 				}
-				result := bank.MaximumJoltage()
 				if result != tt.expected {
-					t.Errorf("MaximumJoltage() = %v, want %v", result, tt.expected)
+					t.Errorf("ParseBank() = %v, want %v", result, tt.expected)
 				}
 			},
 		)
@@ -92,6 +91,28 @@ func BenchmarkPart1(b *testing.B) {
 			if result != expected {
 				b.Fatalf("expected %d, got %d", expected, result)
 			}
+		}
+	})
+}
+
+func BenchmarkParseBank(b *testing.B) {
+	data, err := os.ReadFile(getInputPath())
+	if err != nil {
+		b.Fatalf("failed to read input file: %v", err)
+	}
+	lines := strings.Split(strings.TrimSpace(string(data)), "\n")
+
+	b.Run("ParseBank", func(b *testing.B) {
+		b.ReportAllocs()
+		idx := 0
+		for b.Loop() {
+			line := lines[idx%len(lines)]
+			result, err := ParseBank(line)
+			if err != nil {
+				b.Fatalf("ParseBank failed: %v", err)
+			}
+			_ = result
+			idx++
 		}
 	})
 }
