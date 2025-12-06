@@ -87,8 +87,8 @@ func TestPart1(t *testing.T) {
 		t.Run(
 			tt.name,
 			func(t *testing.T) {
-				result, err := Part1(
-					strings.NewReader(tt.input), 1)
+				result, err := Part1Sequential(
+					strings.NewReader(tt.input))
 				if err != nil {
 					t.Fatalf("Part1() error = %v", err)
 				}
@@ -97,7 +97,44 @@ func TestPart1(t *testing.T) {
 				}
 			})
 	}
+}
 
+func TestPart2(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected int
+	}{
+		{
+			"Provided example",
+			`3-5
+10-14
+16-20
+12-18
+
+1
+5
+8
+11
+17
+32`,
+			14,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(
+			tt.name,
+			func(t *testing.T) {
+				result, err := Part2Sequential(
+					strings.NewReader(tt.input))
+				if err != nil {
+					t.Fatalf("Part2() error = %v", err)
+				}
+				if result != tt.expected {
+					t.Errorf("Part2() = %v, want %v", result, tt.expected)
+				}
+			})
+	}
 }
 
 func BenchmarkPart1(b *testing.B) {
@@ -106,15 +143,59 @@ func BenchmarkPart1(b *testing.B) {
 		b.Fatalf("Failed to read input file: %v", err)
 	}
 	expected := 761
-	b.Run("Part1", func(b *testing.B) {
+	b.Run("Part1Parallel", func(b *testing.B) {
 		b.ReportAllocs()
 		for b.Loop() {
-			result, err := Part1(strings.NewReader(string(data)), numWorkers)
+			result, err := Part1Parallel(strings.NewReader(string(data)), numWorkers)
 			if err != nil {
 				b.Fatalf("Part1() error = %v", err)
 			}
 			if result != expected {
 				b.Fatalf("Part1() = %v, want %v", result, expected)
+			}
+		}
+	})
+	b.Run("Part1Sequential", func(b *testing.B) {
+		b.ReportAllocs()
+		for b.Loop() {
+			result, err := Part1Sequential(strings.NewReader(string(data)))
+			if err != nil {
+				b.Fatalf("Part1() error = %v", err)
+			}
+			if result != expected {
+				b.Fatalf("Part1() = %v, want %v", result, expected)
+			}
+		}
+	})
+}
+
+func BenchmarkPart2(b *testing.B) {
+	data, err := os.ReadFile(getInputPath())
+	if err != nil {
+		b.Fatalf("Failed to read input file: %v", err)
+	}
+	expected := 345755049374932
+	b.Run("Part2Parallel", func(b *testing.B) {
+		b.ReportAllocs()
+		for b.Loop() {
+			result, err := Part2Parallel(strings.NewReader(string(data)), numWorkers)
+			if err != nil {
+				b.Fatalf("Part2() error = %v", err)
+			}
+			if result != expected {
+				b.Fatalf("Part2() = %v, want %v", result, expected)
+			}
+		}
+	})
+	b.Run("Part2Sequential", func(b *testing.B) {
+		b.ReportAllocs()
+		for b.Loop() {
+			result, err := Part2Sequential(strings.NewReader(string(data)))
+			if err != nil {
+				b.Fatalf("Part2() error = %v", err)
+			}
+			if result != expected {
+				b.Fatalf("Part2() = %v, want %v", result, expected)
 			}
 		}
 	})

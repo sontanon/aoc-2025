@@ -70,7 +70,7 @@ func ParseInput(input io.Reader) (SparseRange, []int, error) {
 		return SparseRange{}, nil, err
 	}
 
-	rangesStr, IdsStr, found := strings.Cut(strings.TrimSpace(string(data)), "\n\n")
+	rangesStr, idsStr, found := strings.Cut(strings.TrimSpace(string(data)), "\n\n")
 	if !found {
 		return SparseRange{}, nil, errors.New("invalid input format")
 	}
@@ -99,7 +99,7 @@ func ParseInput(input io.Reader) (SparseRange, []int, error) {
 		return cmp.Compare(a.Start, b.Start)
 	})
 
-	idLines := strings.Split(strings.TrimSpace(IdsStr), "\n")
+	idLines := strings.Split(strings.TrimSpace(idsStr), "\n")
 	ids := make([]int, 0, len(idLines))
 	for _, line := range idLines {
 		id, err := strconv.Atoi(line)
@@ -123,7 +123,21 @@ func ParseInput(input io.Reader) (SparseRange, []int, error) {
 	return sr, ids, nil
 }
 
-func Part1(input io.Reader, numWorkers int) (int, error) {
+func Part1Sequential(input io.Reader) (int, error) {
+	sr, ids, err := ParseInput(input)
+	if err != nil {
+		return 0, err
+	}
+	count := 0
+	for _, id := range ids {
+		if sr.Contains(id) {
+			count++
+		}
+	}
+	return count, nil
+}
+
+func Part1Parallel(input io.Reader, numWorkers int) (int, error) {
 	sr, ids, err := ParseInput(input)
 	if err != nil {
 		return 0, err
@@ -160,6 +174,53 @@ func Part1(input io.Reader, numWorkers int) (int, error) {
 	return total, nil
 }
 
+func Part2Sequential(input io.Reader) (int, error) {
+	sr, _, err := ParseInput(input)
+	if err != nil {
+		return 0, err
+	}
+	count := 0
+	for _, r := range sr.SubRanges {
+		count += r.End - r.Start + 1
+	}
+	return count, nil
+}
+
+func Part2Parallel(input io.Reader, numWorkers int) (int, error) {
+	sr, _, err := ParseInput(input)
+	if err != nil {
+		return 0, err
+	}
+	rangesPerWorker := (len(sr.SubRanges) + numWorkers - 1) / numWorkers
+	results := make(chan int, numWorkers)
+	wg := sync.WaitGroup{}
+	for w := range numWorkers {
+		wg.Go(func() {
+			start := w * rangesPerWorker
+			if start >= len(sr.SubRanges) {
+				results <- 0
+				return
+			}
+			end := min((w+1)*rangesPerWorker, len(sr.SubRanges))
+			localCount := 0
+			for _, r := range sr.SubRanges[start:end] {
+				localCount += r.End - r.Start + 1
+			}
+			results <- localCount
+		})
+	}
+	go func() {
+		wg.Wait()
+		close(results)
+	}()
+
+	total := 0
+	for r := range results {
+		total += r
+	}
+	return total, nil
+}
+
 func getInputPath() string {
 	_, filename, _, _ := runtime.Caller(0)
 	dir := filepath.Dir(filename)
@@ -173,9 +234,18 @@ func main() {
 	}
 	defer file.Close()
 
-	result, err := Part1(file, numWorkers)
+	result, err := Part1Sequential(file)
 	if err != nil {
 		panic(err)
 	}
 	println("Part 1:", result)
+
+	if _, err := file.Seek(0, io.SeekStart); err != nil {
+		panic(err)
+	}
+	result2, err := Part2Sequential(file)
+	if err != nil {
+		panic(err)
+	}
+	println("Part 2:", result2)
 }
