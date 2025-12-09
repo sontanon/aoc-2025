@@ -85,6 +85,38 @@ func TestPart1(t *testing.T) {
 	}
 }
 
+func TestPart2(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected int
+	}{
+		{
+			"Provided example",
+			`123 328  51 64 
+ 45 64  387 23 
+  6 98  215 314
+*   +   *   +  
+`,
+			3263827,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(
+			tt.name,
+			func(t *testing.T) {
+				result, err := Part2(
+					strings.NewReader(tt.input))
+				if err != nil {
+					t.Fatalf("Part2() error = %v", err)
+				}
+				if result != tt.expected {
+					t.Errorf("Part2() = %v, want %v", result, tt.expected)
+				}
+			})
+	}
+}
+
 func BenchmarkPart1(b *testing.B) {
 	data, err := os.ReadFile(getInputPath())
 	if err != nil {
@@ -100,6 +132,26 @@ func BenchmarkPart1(b *testing.B) {
 			}
 			if result != expected {
 				b.Fatalf("Part1() = %v, want %v", result, expected)
+			}
+		}
+	})
+}
+
+func BenchmarkPart2(b *testing.B) {
+	data, err := os.ReadFile(getInputPath())
+	if err != nil {
+		b.Fatalf("failed to read input file: %v", err)
+	}
+	expected := 11479269003550
+	b.Run("Part1", func(b *testing.B) {
+		b.ReportAllocs()
+		for b.Loop() {
+			result, err := Part2(strings.NewReader(string(data)))
+			if err != nil {
+				b.Fatalf("Part2() error = %v", err)
+			}
+			if result != expected {
+				b.Fatalf("Part2() = %v, want %v", result, expected)
 			}
 		}
 	})

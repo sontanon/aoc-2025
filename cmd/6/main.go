@@ -142,6 +142,96 @@ func Part1(input io.Reader) (int, error) {
 	return ws.Calculate(), nil
 }
 
+func Part2(input io.Reader) (int, error) {
+	data, err := io.ReadAll(input)
+	if err != nil {
+		return 0, err
+	}
+	lines := strings.Split(strings.TrimSpace(string(data)), "\n")
+	numLines := len(lines)
+	if numLines < 2 {
+		return 0, fmt.Errorf("input must contain a t least two lines, received %d", numLines)
+	}
+	ops := strings.Fields(lines[numLines-1])
+	for i, op := range ops {
+		if op != string(OperationAdd) && op != string(OperationMul) {
+			return 0, fmt.Errorf("invalid operation at position %d: '%s'", i, op)
+		}
+	}
+	lines = lines[0 : numLines-1]
+	lineLength := len(lines[0])
+	for i := range lines {
+		if len(lines[i]) != lineLength {
+			return 0, fmt.Errorf("inconsistent line length for line %d, received length %d but expected %d", i+1, len(lines[i]), lineLength)
+		}
+	}
+
+	numCols := len(ops)
+	right := lineLength - 1
+	result := 0
+	for j := numCols - 1; j >= 0; j-- {
+		op := Operation(ops[j])
+		columnResult, newRight, err := operateColumn(lines, right, op)
+		if err != nil {
+			return 0, fmt.Errorf("error processing column %d: %w", j, err)
+		}
+		result += columnResult
+		right = newRight
+	}
+	return result, nil
+}
+
+func operateColumn(lines []string, right int, op Operation) (int, int, error) {
+	if right < 0 {
+		return 0, 0, fmt.Errorf("initial right offset cannot be less than zero, received %d", right)
+	}
+	n := len(lines)
+	if n == 0 {
+		return 0, 0, errors.New("received empty lines")
+	}
+	buffer := make([]byte, n)
+
+	result := 0
+	if op == OperationMul {
+		result = 1
+	}
+
+	allSpaces := false
+	for ; right >= 0 && !allSpaces; right-- {
+		countSpaces := 0
+		for i := range lines {
+			b := lines[i][right]
+			if b != ' ' && (b < '0' || b > '9') {
+				return 0, 0, fmt.Errorf("received unexpected byte at line %d, offset %d: %q", i+1, right, b)
+			}
+			if b == ' ' {
+				countSpaces++
+			}
+			buffer[i] = b
+		}
+		if countSpaces == n {
+			allSpaces = true
+			continue
+		}
+		subResult := 0
+		multiplier := 1
+		for i := len(lines) - 1; i >= 0; i-- {
+			if buffer[i] == ' ' {
+				continue
+			}
+			subResult += multiplier * int(buffer[i]-'0')
+			multiplier *= 10
+		}
+		switch op {
+		case OperationAdd:
+			result += subResult
+		case OperationMul:
+			result *= subResult
+		}
+	}
+	return result, right, nil
+}
+
 func getInputPath() string {
 	_, filename, _, _ := runtime.Caller(0)
 	dir := filepath.Dir(filename)
@@ -160,4 +250,10 @@ func main() {
 		panic(err)
 	}
 	println("Part 1:", result1)
+
+	if _, err := file.Seek(0, io.SeekStart); err != nil {
+		panic(err)
+	}
+	result2, err := Part2(file)
+	println("Part 2:", result2)
 }
