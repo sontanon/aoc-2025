@@ -89,6 +89,32 @@ func (b *Beams) Split(splitters []int) (int, error) {
 	return count, nil
 }
 
+type Timelines struct {
+	Beams         map[int]int
+	BeamSplitters []map[int]struct{}
+	Width         int
+}
+
+func (t *Timelines) Advance() int {
+	for _, splitters := range t.BeamSplitters {
+		newBeams := make(map[int]int, len(t.Beams)*2)
+		for beamPos, beamValue := range t.Beams {
+			if _, isSplitter := splitters[beamPos]; isSplitter {
+				newBeams[beamPos-1] += beamValue
+				newBeams[beamPos+1] += beamValue
+			} else {
+				newBeams[beamPos] += beamValue
+			}
+		}
+		t.Beams = newBeams
+	}
+	total := 0
+	for _, v := range t.Beams {
+		total += v
+	}
+	return total
+}
+
 func Part1(input io.Reader) (int, error) {
 	bSps, err := ParseInput(input)
 	if err != nil {
@@ -112,6 +138,29 @@ func Part1(input io.Reader) (int, error) {
 	return count, nil
 }
 
+func Part2(input io.Reader) (int, error) {
+	bSps, err := ParseInput(input)
+	if err != nil {
+		return 0, err
+	}
+	timelines := Timelines{
+		Beams: map[int]int{
+			bSps.StartingBeam: 1,
+		},
+		BeamSplitters: make([]map[int]struct{}, 0, len(bSps.Splits)),
+		Width:         bSps.Width,
+	}
+	for _, splitters := range bSps.Splits {
+		splitterMap := make(map[int]struct{}, len(splitters))
+		for _, pos := range splitters {
+			splitterMap[pos] = struct{}{}
+		}
+		timelines.BeamSplitters = append(timelines.BeamSplitters, splitterMap)
+	}
+	total := timelines.Advance()
+	return total, nil
+}
+
 func getInputPath() string {
 	_, filename, _, _ := runtime.Caller(0)
 	dir := filepath.Dir(filename)
@@ -131,9 +180,9 @@ func main() {
 	}
 	println("Part 1:", result1)
 
-	// if _, err := file.Seek(0, io.SeekStart); err != nil {
-	// 	panic(err)
-	// }
-	// result2, err := Part2(file)
-	// println("Part 2:", result2)
+	if _, err := file.Seek(0, io.SeekStart); err != nil {
+		panic(err)
+	}
+	result2, err := Part2(file)
+	println("Part 2:", result2)
 }

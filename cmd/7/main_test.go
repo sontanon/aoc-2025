@@ -48,3 +48,47 @@ func TestPart1(t *testing.T) {
 			})
 	}
 }
+
+func TestPart2(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected int
+	}{
+		{
+			"Provided example",
+			`.......S.......
+...............
+.......^.......
+...............
+......^.^......
+...............
+.....^.^.^.....
+...............
+....^.^...^....
+...............
+...^.^...^.^...
+...............
+..^...^.....^..
+...............
+.^.^.^.^.^...^.
+...............
+`,
+			40,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(
+			tt.name,
+			func(t *testing.T) {
+				result, err := Part2(
+					strings.NewReader(tt.input))
+				if err != nil {
+					t.Fatalf("Part2() error = %v", err)
+				}
+				if result != tt.expected {
+					t.Errorf("Part2() = %v, want %v", result, tt.expected)
+				}
+			})
+	}
+}
