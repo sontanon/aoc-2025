@@ -190,6 +190,7 @@ func Part2(input io.Reader) (int, error) {
 
 	return 0, errors.New("could not connect all vectors into a single circuit")
 }
+
 func getInputPath() string {
 	_, filename, _, _ := runtime.Caller(0)
 	dir := filepath.Dir(filename)
