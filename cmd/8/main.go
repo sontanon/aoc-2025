@@ -15,7 +15,7 @@ import (
 	"strings"
 )
 
-type Vector [3]float64
+type Vector [3]int
 
 type Batch []Vector
 
@@ -40,19 +40,16 @@ func ParseInput(input io.Reader) (Batch, error) {
 		if len(splits) != 3 {
 			return nil, fmt.Errorf("line %d does not contain valid input: %s", numLine, line)
 		}
-		x, err := strconv.Atoi(splits[0])
-		if err != nil {
-			return nil, fmt.Errorf("line %d contains invalid integer: %s", numLine, splits[0])
+
+		var v Vector
+		for i, s := range splits {
+			val, err := strconv.Atoi(s)
+			if err != nil {
+				return nil, fmt.Errorf("line %d contains invalid integer: %s", numLine, s)
+			}
+			v[i] = val
 		}
-		y, err := strconv.Atoi(splits[1])
-		if err != nil {
-			return nil, fmt.Errorf("line %d contains invalid integer: %s", numLine, splits[1])
-		}
-		z, err := strconv.Atoi(splits[2])
-		if err != nil {
-			return nil, fmt.Errorf("line %d contains invalid integer: %s", numLine, splits[2])
-		}
-		result = append(result, Vector{float64(x), float64(y), float64(z)})
+		result = append(result, v)
 	}
 	if err := lineScanner.Err(); err != nil {
 		return nil, err
@@ -72,14 +69,10 @@ func CalculateDistances(b Batch) ([]PairDistance, error) {
 	pds := make([]PairDistance, 0, n*(n-1)/2)
 	for i := range n {
 		for j := i + 1; j < n; j++ {
-			pds = append(pds,
-				PairDistance{
-					Distance: Distance(b[i], b[j]),
-					Indices: [2]int{
-						i, j,
-					},
-				},
-			)
+			pds = append(pds, PairDistance{
+				Distance: Distance(b[i], b[j]),
+				Indices:  [2]int{i, j},
+			})
 		}
 	}
 	slices.SortFunc(pds, func(a, b PairDistance) int {
@@ -89,48 +82,50 @@ func CalculateDistances(b Batch) ([]PairDistance, error) {
 }
 
 func Distance(u, v Vector) float64 {
-	return math.Sqrt((u[0]-v[0])*(u[0]-v[0]) + (u[1]-v[1])*(u[1]-v[1]) + (u[2]-v[2])*(u[2]-v[2]))
+	return math.Sqrt(float64((u[0]-v[0])*(u[0]-v[0]) + (u[1]-v[1])*(u[1]-v[1]) + (u[2]-v[2])*(u[2]-v[2])))
 }
 
 func Connect(cs Circuits, a, b int) Circuits {
 	aIdx := -1
 	bIdx := -1
 
-	for i := 0; i < len(cs) && (aIdx == -1 || bIdx == -1); i++ {
-		if _, aExists := cs[i][a]; aExists {
-			aIdx = i
+	for i := range cs {
+		if aIdx == -1 {
+			if _, exists := cs[i][a]; exists {
+				aIdx = i
+			}
 		}
-		if _, bExists := cs[i][b]; bExists {
-			bIdx = i
+		if bIdx == -1 {
+			if _, exists := cs[i][b]; exists {
+				bIdx = i
+			}
+		}
+		if aIdx != -1 && bIdx != -1 {
+			break
 		}
 	}
 
 	if aIdx == -1 && bIdx == -1 {
-		sc := map[int]struct{}{
-			a: {},
-			b: {},
-		}
-		cs = append(cs, sc)
+		return append(cs, map[int]struct{}{a: {}, b: {}})
+	}
+	if aIdx == bIdx {
 		return cs
 	}
-	if aIdx != -1 && bIdx != -1 && aIdx == bIdx {
-		return cs
-	}
-	if aIdx == -1 && bIdx != -1 {
-		cs[bIdx][a] = struct{}{}
-		return cs
-	}
-	if bIdx == -1 && aIdx != -1 {
+	if aIdx != -1 && bIdx == -1 {
 		cs[aIdx][b] = struct{}{}
 		return cs
 	}
+	if bIdx != -1 && aIdx == -1 {
+		cs[bIdx][a] = struct{}{}
+		return cs
+	}
+
 	smallIdx := min(aIdx, bIdx)
 	bigIdx := max(aIdx, bIdx)
 	for node := range cs[bigIdx] {
 		cs[smallIdx][node] = struct{}{}
 	}
-	cs = append(cs[:bigIdx], cs[bigIdx+1:]...)
-	return cs
+	return append(cs[:bigIdx], cs[bigIdx+1:]...)
 }
 
 func Part1(input io.Reader, numConnections int) (int, error) {
@@ -145,8 +140,9 @@ func Part1(input io.Reader, numConnections int) (int, error) {
 	}
 
 	cs := make(Circuits, 0)
+	limit := min(numConnections, len(pds))
 
-	for i := range min(numConnections, len(pds)) {
+	for i := range limit {
 		a := pds[i].Indices[0]
 		b := pds[i].Indices[1]
 		cs = Connect(cs, a, b)
@@ -156,15 +152,44 @@ func Part1(input io.Reader, numConnections int) (int, error) {
 		return 0, errors.New("did not create at least three distinct circuit groups")
 	}
 
-	ls := make([]int, len(cs))
-	for i := range ls {
-		ls[i] = len(cs[i])
+	// Extract circuit sizes
+	sizes := make([]int, len(cs))
+	for i, circuit := range cs {
+		sizes[i] = len(circuit)
 	}
+	slices.Sort(sizes)
 
-	slices.Sort(ls)
-	return ls[len(ls)-1] * ls[len(ls)-2] * ls[len(ls)-3], nil
+	return sizes[len(sizes)-1] * sizes[len(sizes)-2] * sizes[len(sizes)-3], nil
 }
 
+func Part2(input io.Reader) (int, error) {
+	batch, err := ParseInput(input)
+	if err != nil {
+		return 0, err
+	}
+
+	pds, err := CalculateDistances(batch)
+	if err != nil {
+		return 0, err
+	}
+
+	cs := make(Circuits, 0)
+	targetSize := len(batch)
+
+	for i := range pds {
+		a := pds[i].Indices[0]
+		b := pds[i].Indices[1]
+		cs = Connect(cs, a, b)
+
+		for _, circuit := range cs {
+			if len(circuit) == targetSize {
+				return batch[a][0] * batch[b][0], nil
+			}
+		}
+	}
+
+	return 0, errors.New("could not connect all vectors into a single circuit")
+}
 func getInputPath() string {
 	_, filename, _, _ := runtime.Caller(0)
 	dir := filepath.Dir(filename)
@@ -182,11 +207,15 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	println("Part 1:", result1)
+	fmt.Println("Part 1:", result1)
 
-	// if _, err := file.Seek(0, io.SeekStart); err != nil {
-	// 	panic(err)
-	// }
-	// result2, err := Part2(file)
-	// println("Part 2:", result2)
+	if _, err := file.Seek(0, io.SeekStart); err != nil {
+		panic(err)
+	}
+
+	result2, err := Part2(file)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println("Part 2:", result2)
 }
