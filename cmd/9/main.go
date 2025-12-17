@@ -5,10 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strconv"
 	"strings"
 )
@@ -85,43 +85,50 @@ func Part2(input io.Reader) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	log.Printf("Loaded %d vectors in batch\n", len(batch))
+	// log.Printf("Loaded %d vectors in batch\n", len(batch))
 
-	xMin, xMax := batch[0][0], batch[0][0]
-	yMin, yMax := batch[0][1], batch[0][1]
-	for _, v := range batch[1:] {
-		x, y := v[0], v[1]
-		if x < xMin {
-			xMin = x
-		}
-		if x > xMax {
-			xMax = x
-		}
-		if y < yMin {
-			yMin = y
-		}
-		if y > yMax {
-			yMax = y
-		}
+	uniqueX := make(map[int]struct{})
+	uniqueY := make(map[int]struct{})
+	for _, v := range batch {
+		uniqueX[v[0]] = struct{}{}
+		uniqueY[v[1]] = struct{}{}
 	}
-	log.Printf("X range: %d to %d\n", xMin, xMax)
-	log.Printf("Y range: %d to %d\n", yMin, yMax)
+	// log.Printf("Found %d unique X and %d unique Y coordinates\n", len(uniqueX), len(uniqueY))
 
-	for k, u := range batch {
-		batch[k] = Vector{u[0] - xMin, u[1] - yMin}
+	Xs := make([]int, 0, len(uniqueX)+2)
+	Ys := make([]int, 0, len(uniqueY)+2)
+	Xs = append(Xs, 0)
+	Ys = append(Ys, 0)
+	for x := range uniqueX {
+		Xs = append(Xs, x)
 	}
-	log.Printf("Normalized vectors to origin\n")
+	for y := range uniqueY {
+		Ys = append(Ys, y)
+	}
+	slices.Sort(Xs)
+	slices.Sort(Ys)
+	Xs = append(Xs, Xs[len(Xs)-1]+1)
+	Ys = append(Ys, Ys[len(Ys)-1]+1)
+	// log.Printf("Sorted unique coordinates\n")
 
-	yRange := yMax - yMin + 1
-	xRange := xMax - xMin + 1
-	mask := make([][]int, yRange)
+	xToIndex := make(map[int]int, len(Xs))
+	for i, x := range Xs {
+		xToIndex[x] = i
+	}
+	yToIndex := make(map[int]int, len(Ys))
+	for j, y := range Ys {
+		yToIndex[y] = j
+	}
+	// log.Printf("Constructed coordinate to index maps\n")
+
+	mask := make([][]int, len(Ys))
 	for j := range mask {
-		mask[j] = make([]int, xRange)
+		mask[j] = make([]int, len(Xs))
 	}
 	for k, u := range batch {
 		v := batch[(k+1)%len(batch)]
-		xi, yi := u[0], u[1]
-		xf, yf := v[0], v[1]
+		xi, yi := xToIndex[u[0]], yToIndex[u[1]]
+		xf, yf := xToIndex[v[0]], yToIndex[v[1]]
 		switch {
 		case xf-xi > 0:
 			for x := xi; x < xf; x++ {
@@ -141,87 +148,93 @@ func Part2(input io.Reader) (int, error) {
 			}
 		}
 	}
-	log.Printf("Constructed mask of polygon edges\n")
-	// printMask(mask, xRange, yRange)
+	// log.Printf("Constructed optimized mask of polygon edges\n")
+	// printMask(mask, len(Xs), len(Ys))
 
-	for j := range yRange {
-		for i := 1; i < xRange; i++ {
-			if mask[j][i] == 0 && mask[j][i-1] == 1 {
-				// Fill the entire run of zeros in one go
-				for i < xRange && mask[j][i] == 0 {
-					mask[j][i] = 1
-					i++
-				}
+	type vertEdge struct{ x, yMin, yMax int }
+	verticalEdges := make([]vertEdge, 0, len(batch)/2)
+	for k, u := range batch {
+		v := batch[(k+1)%len(batch)]
+		if u[0] == v[0] { // Vertical edge
+			xi := xToIndex[u[0]]
+			yi, yf := yToIndex[u[1]], yToIndex[v[1]]
+			if yi > yf {
+				yi, yf = yf, yi
+			}
+			verticalEdges = append(verticalEdges, vertEdge{xi, yi, yf})
+		}
+	}
+
+	crossings := make([]int, 0, len(verticalEdges))
+	for j := 0; j < len(Ys)-1; j++ {
+		crossings = crossings[:0]
+		for _, e := range verticalEdges {
+			if e.yMin <= j && j < e.yMax {
+				crossings = append(crossings, e.x)
+			}
+		}
+		slices.Sort(crossings)
+		for c := 0; c+1 < len(crossings); c += 2 {
+			for i := crossings[c]; i < crossings[c+1]; i++ {
+				mask[j][i] = 1
 			}
 		}
 	}
-	log.Printf("Filled interior of polygon\n")
-	// printMask(mask, xRange, yRange)
+
+	// log.Printf("Filled interior of polygon\n")
+	// printMask(mask, len(Xs), len(Ys))
 
 	maxArea := 0
-	for k := range len(batch) {
+	// candidate1 := 0
+	// candidate2 := 1
+	for k := range batch {
 		u := batch[k]
-		xi, yi := u[0], u[1]
+		xi, yi := xToIndex[u[0]], yToIndex[u[1]]
 	CandidateLoop:
 		for l := k + 1; l < len(batch); l++ {
 			v := batch[l]
-			xf, yf := v[0], v[1]
-			deltaX := xf - xi
-			switch {
-			case deltaX > 0:
-				for x := 1; x < deltaX; x++ {
-					if mask[yi][xi+x] == 0 || mask[yf][xf-x] == 0 {
-						continue CandidateLoop
-					}
-				}
-			case -deltaX > 0:
-				for x := 1; x < -deltaX; x++ {
-					if mask[yi][xi-x] == 0 || mask[yf][xf+x] == 0 {
+			xf, yf := xToIndex[v[0]], yToIndex[v[1]]
+			for y := min(yi, yf); y <= max(yi, yf); y++ {
+				for x := min(xi, xf); x <= max(xi, xf); x++ {
+					if mask[y][x] == 0 {
 						continue CandidateLoop
 					}
 				}
 			}
-			deltaY := yf - yi
-			switch {
-			case deltaY > 0:
-				for y := 1; y < deltaY; y++ {
-					if mask[yi+y][xi] == 0 || mask[yf-y][xf] == 0 {
-						continue CandidateLoop
-					}
-				}
-			case -deltaY > 0:
-				for y := 1; y < -deltaY; y++ {
-					if mask[yi-y][xi] == 0 || mask[yf+y][xf] == 0 {
-						continue CandidateLoop
-					}
-				}
+			width := u[0] - v[0]
+			height := u[1] - v[1]
+			if width < 0 {
+				width = -width
 			}
-
-			if deltaX < 0 {
-				deltaX = -deltaX
+			if height < 0 {
+				height = -height
 			}
-			if deltaY < 0 {
-				deltaY = -deltaY
-			}
-			area := (deltaX + 1) * (deltaY + 1)
+			area := (width + 1) * (height + 1)
 			if area > maxArea {
 				maxArea = area
+				// candidate1 = k
+				// candidate2 = l
 			}
 		}
 	}
+	// log.Printf("Found max area between vectors %v and %v: %d\n", batch[candidate1], batch[candidate2], maxArea)
 
 	return maxArea, nil
 }
+
 func printMask(mask [][]int, xRange, yRange int) {
+	line := strings.Builder{}
+	line.Grow(xRange)
 	for j := range yRange {
+		line.Reset()
 		for i := range xRange {
 			if mask[j][i] == 1 {
-				fmt.Print("#")
+				line.WriteByte('#')
 			} else {
-				fmt.Print(".")
+				line.WriteByte('.')
 			}
 		}
-		fmt.Println()
+		fmt.Println(line.String())
 	}
 }
 
