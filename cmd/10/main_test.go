@@ -40,7 +40,7 @@ func TestVerifySolution(t *testing.T) {
 		name           string
 		input          string
 		buttonSequence []int
-		ignoreJoltage  bool
+		equalityFunc   func(a, b State) bool
 		expected       bool
 		errorExpected  bool
 	}{
@@ -48,7 +48,17 @@ func TestVerifySolution(t *testing.T) {
 			"Provided example 1 with joltage",
 			`[.##.] (3) (1,3) (2) (2,3) (0,2) (0,1) {3,5,4,7}`,
 			[]int{0, 1, 1, 1, 3, 3, 3, 4, 5, 5},
-			false,
+			func(a, b State) bool {
+				if len(a.Joltage) != len(b.Joltage) {
+					return false
+				}
+				for i := range a.Joltage {
+					if a.Joltage[i] != b.Joltage[i] {
+						return false
+					}
+				}
+				return true
+			},
 			true,
 			false,
 		},
@@ -61,7 +71,7 @@ func TestVerifySolution(t *testing.T) {
 				if err != nil {
 					t.Fatalf("ParseLine() error = %v", err)
 				}
-				result, err := VerifySolution(actionSpace, tt.buttonSequence, tt.ignoreJoltage)
+				result, err := VerifySolution(actionSpace, tt.buttonSequence, tt.equalityFunc)
 				if (err != nil) != tt.errorExpected {
 					t.Fatalf("VerifySolution() error = %v, errorExpected %v", err, tt.errorExpected)
 				}
