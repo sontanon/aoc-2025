@@ -1,0 +1,14 @@
+[project]
+name = "aoc-2025"
+version = "0.1.0"
+requires-python = ">=3.14"
+dependencies = [
+    "pulp>=3.3.0",
+]
+
+[dependency-groups]
+dev = [
+    "pyrefly>=0.46.0",
+    "pytest>=9.0.2",
+    "ruff>=0.14.10",
+]
